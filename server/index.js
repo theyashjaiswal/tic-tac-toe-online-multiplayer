@@ -61,13 +61,14 @@ io.on('connection', (socket) => {
       players: [{ id: socket.id, name: playerName || 'Player', symbol: 'X' }],
       board: Array(9).fill(null),
       currentTurn: 'X', gameOver: false, winner: null, winLine: null,
+      scores: { X: 0, O: 0, draws: 0 },
     }
     socket.join(code)
     socket.roomCode = code
     socket.symbol = 'X'
     socket.playerName = playerName || 'Player'
     console.log('[room]', code, 'created by', playerName)
-    cb({ success: true, roomCode: code, symbol: 'X' })
+    cb({ success: true, roomCode: code, symbol: 'X', scores: rooms[code].scores })
   })
 
   socket.on('join_room', ({ roomCode, playerName }, cb) => {
@@ -87,9 +88,10 @@ io.on('connection', (socket) => {
       players: room.players,
       board: room.board,
       currentTurn: room.currentTurn,
+      scores: room.scores,
     })
     console.log('[room]', code, 'joined by', playerName)
-    cb({ success: true, roomCode: code, symbol: 'O', players: room.players, board: room.board, currentTurn: room.currentTurn })
+    cb({ success: true, roomCode: code, symbol: 'O', players: room.players, board: room.board, currentTurn: room.currentTurn, scores: room.scores })
   })
 
   socket.on('make_move', ({ index }, cb) => {
@@ -103,14 +105,22 @@ io.on('connection', (socket) => {
 
     room.board[index] = player.symbol
     const result = checkWinner(room.board)
-    if (result) { room.gameOver = true; room.winner = result.winner; room.winLine = result.line }
-    else if (room.board.every(c => c !== null)) { room.gameOver = true }
-    else { room.currentTurn = room.currentTurn === 'X' ? 'O' : 'X' }
+    if (result) {
+      room.gameOver = true; room.winner = result.winner; room.winLine = result.line
+      // Increment score on the server so both clients see the same numbers
+      room.scores[result.winner] = (room.scores[result.winner] || 0) + 1
+    } else if (room.board.every(c => c !== null)) {
+      room.gameOver = true
+      room.scores.draws = (room.scores.draws || 0) + 1
+    } else {
+      room.currentTurn = room.currentTurn === 'X' ? 'O' : 'X'
+    }
 
     io.to(socket.roomCode).emit('game_update', {
       board: room.board, currentTurn: room.currentTurn, gameOver: room.gameOver,
       winner: room.winner, winLine: room.winLine, lastMove: { index, symbol: player.symbol },
     })
+    io.to(socket.roomCode).emit('scores_update', room.scores)
     cb({ success: true })
   })
 

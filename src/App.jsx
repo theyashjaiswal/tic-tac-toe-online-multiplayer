@@ -381,6 +381,7 @@ export default function App() {
   const [lastMove, setLastMove] = useState(null)
   const [roomError, setRoomError] = useState('')
   const [showOverlay, setShowOverlay] = useState(false)
+  const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 })
   const [localScores, setLocalScores] = useState({ X: 0, O: 0, draws: 0 })
   const [mode, setMode] = useState('friend')
   const [prefilledRoom, setPrefilledRoom] = useState('')
@@ -425,7 +426,17 @@ export default function App() {
       setPlayers(data.players)
       if (data.board) setBoard(data.board)
       if (data.currentTurn) setCurrentTurn(data.currentTurn)
+      if (data.scores) setScores(data.scores)
       setRoomError('')
+    })
+
+    sock.on('scores_update', (data) => {
+      setScores(data)
+    })
+
+    sock.on('opponent_left', (data) => {
+      // (already wired in cleanup somewhere — let's just keep scores synced if provided)
+      if (data.scores) setScores(data.scores)
     })
 
     sock.on('player_left', (data) => {
@@ -459,6 +470,7 @@ export default function App() {
       if (data.board) setBoard(data.board)
       if (data.currentTurn) setCurrentTurn(data.currentTurn)
     }
+    if (data.scores) setScores(data.scores)
     setScreen('room')
 
     // Remember so we can auto-rejoin on HMR / reconnect
@@ -486,16 +498,8 @@ export default function App() {
     setBoard(Array(9).fill(null))
     setCurrentTurn('X')
     getSocket().emit('play_again', (res) => {
-      if (res.success) {
-        // local scores
-        if (winner === mySymbol) {
-          setLocalScores(s => ({ ...s, [mySymbol]: s[mySymbol] + 1 }))
-        } else if (!winner) {
-          setLocalScores(s => ({ ...s, draws: s.draws + 1 }))
-        } else {
-          setLocalScores(s => ({ ...s, [winner]: s[winner] + 1 }))
-        }
-      }
+      // Scores are server-authoritative now — server fires `scores_update` automatically on every game end.
+      // This callback just acknowledges the round reset.
     })
   }, [mode, mySymbol, winner])
 
@@ -524,6 +528,7 @@ export default function App() {
     setMyName('')
     setRoomError('')
     setLocalScores({ X: 0, O: 0, draws: 0 })
+    setScores({ X: 0, O: 0, draws: 0 })
   }, [])
 
   return (
@@ -560,10 +565,10 @@ export default function App() {
           />
         )}
 
-        {/* Local score panel — only in non-online modes */}
-        {mode !== 'online' && (
-          <ScorePanel scores={localScores} />
-        )}
+        {/* Live score panel — uses server-fed scores in online rooms, local scores otherwise */}
+        {mode === 'online'
+          ? <ScorePanel scores={scores} variant="online" />
+          : <ScorePanel scores={localScores} />}
       </div>
 
       <AnimatePresence>
@@ -584,11 +589,19 @@ export default function App() {
   )
 }
 
-function ScorePanel({ scores }) {
+function ScorePanel({ scores, variant }) {
+  const isOnline = variant === 'online'
   return (
     <div className="score-panel" style={{ marginTop: 12 }}>
+      {isOnline && (
+        <>
+          <span className="score-live-dot" />
+          <span className="score-live-label">LIVE</span>
+          <div className="score-divider" />
+        </>
+      )}
       <div className="score-block">
-        <div className="score-label x-label">X</div>
+        <div className="score-label x-label">X WINS</div>
         <div className="score-value x-score">{scores.X}</div>
       </div>
       <div className="score-divider" />
@@ -598,7 +611,7 @@ function ScorePanel({ scores }) {
       </div>
       <div className="score-divider" />
       <div className="score-block">
-        <div className="score-label o-label">O</div>
+        <div className="score-label o-label">O WINS</div>
         <div className="score-value o-score">{scores.O}</div>
       </div>
     </div>
