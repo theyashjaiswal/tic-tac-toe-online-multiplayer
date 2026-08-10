@@ -1,6 +1,6 @@
 # 🎮 Tic Tac Toe · Online Multiplayer
 
-A retro-arcade styled real-time **two-player tic-tac-toe** built with React, Three.js, and Socket.IO. Create a room, share the code, and play with a friend — no login, no installs, just open the link.
+A retro-arcade styled real-time **two-player tic-tac-toe** built with React, the Canvas 2D API, and Socket.IO. Create a room, share the code, and play with a friend — no login, no installs, just open the link.
 
 ![Landing](./screenshots/01-landing.png)
 
@@ -56,6 +56,13 @@ Server-authoritative wins/draws, both clients see the same numbers. The green LI
 ![Scores live](./screenshots/07-scores-live.png)
 ![Scores after 2 wins](./screenshots/08-scores-after-2-wins.png)
 
+### Wrong-Turn Hint
+The board **stays clean** during the opponent's turn — no overlay, no clutter. Only if you accidentally tap a cell does the board briefly shake and a magenta popup politely says whose turn it is.
+
+![Opponent's turn — clean board](./screenshots/09-opponent-turn-clean.png)
+![Clicking during opponent's turn](./screenshots/10-click-popup.png)
+![Popup holds then fades](./screenshots/11-popup-fading.png)
+
 ---
 
 ## 🚀 Getting Started
@@ -105,19 +112,20 @@ node server/index.js
 
 ```
 ┌─────────────────────┐         WebSocket          ┌──────────────────┐
-│  React + Three.js   │ ◄─────────────────────────► │  Socket.IO       │
+│  React + Canvas 2D  │ ◄─────────────────────────► │  Socket.IO       │
 │  (Vite, port 5173)  │   /socket.io (proxied)      │  (Node, :3001)   │
 └─────────────────────┘                             └──────────────────┘
         │                                                    │
-        │ Three.js renders an interactive 3D board          │ Keeps rooms,
-        │ with neon X & O sprites drawn on <canvas>          │ players, moves
-        │ Framer Motion drives UI animations                 │ Win detection
+        │ Canvas 2D renders the game board                    │ Keeps rooms,
+        │ with glowing neon X & O strokes                     │ players, moves
+        │ Framer Motion drives UI animations                  │ Win detection,
+        │ CSS keyframes drive the shakes & pulses             │ live scores
 ```
 
 ### Frontend
 
 - **React 19** with hooks (state, effect, callback, ref)
-- **Three.js + @react-three/fiber** for the animated game board
+- **HTML Canvas 2D** for the animated board — direct `getContext('2d')` drawing with custom X/O sprites, neon glow, and idle pulse animation
 - **Framer Motion** for button hover transitions, modal pop-in, win overlays
 - **socket.io-client** for real-time room sync
 - **Vite** with `/socket.io` proxy so the browser only ever talks to port 5173 in dev
@@ -139,7 +147,7 @@ tic-tac-toe-online-multiplayer/
 ├── client/                       # (this folder — the frontend)
 │   ├── src/
 │   │   ├── App.jsx              # main game, socket.io setup, room logic
-│   │   ├── GameBoard.jsx        # Three.js board, neon X/O sprites
+│   │   ├── GameBoard.jsx        # Canvas-2D board, neon X/O sprites
 │   │   ├── index.css            # arcade-style theme, all components
 │   │   └── main.jsx             # React entrypoint
 │   ├── index.html
