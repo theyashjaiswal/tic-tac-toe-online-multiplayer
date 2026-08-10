@@ -221,7 +221,18 @@ function PlayerBadge({ name, symbol, isYou, isWinner, isActive }) {
 function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, error }) {
   const isMyTurn = currentTurn === mySymbol && !gameOver
   const isWaiting = players.length < 2 && !gameOver
+  const isOpponentTurn = !isMyTurn && !isWaiting && !gameOver && players.length === 2
   const [copied, setCopied] = useState(false)
+  const [denyFlash, setDenyFlash] = useState(0)
+
+  // Wrap onMove so clicking during opponent's turn gives visual feedback
+  const handleMove = (index) => {
+    if (isMyTurn) {
+      onMove(index)
+    } else if (isOpponentTurn) {
+      setDenyFlash(n => n + 1)
+    }
+  }
 
   // Build invite link — preserves the room code so the recipient lands ready to join
   const inviteUrl = `${window.location.origin}/?room=${roomCode}`
@@ -302,13 +313,29 @@ function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, g
 
       {/* Board */}
       <div className="room-board">
-        <GameBoard
-          board={board}
-          onCellClick={onMove}
-          disabled={!isMyTurn || gameOver}
-          winLine={winLine}
-          lastMove={lastMove}
-        />
+        <div key={denyFlash} className={`board-inner${denyFlash > 0 ? ' shake' : ''}`}>
+          <GameBoard
+            board={board}
+            onCellClick={handleMove}
+            disabled={gameOver}
+            winLine={winLine}
+            lastMove={lastMove}
+          />
+        </div>
+        {isOpponentTurn && (
+          <div className="board-wait-overlay">
+            <div className="board-wait-box">
+              <span className="board-wait-pulse" />
+              <span className="board-wait-label">PLEASE WAIT</span>
+              <span className="board-wait-sub">
+                {players.find(p => p.symbol === currentTurn)?.name || 'opponent'}'s turn
+              </span>
+            </div>
+          </div>
+        )}
+        {denyFlash > 0 && isOpponentTurn && (
+          <div key={denyFlash} className="board-deny-flash">NOT YOUR TURN</div>
+        )}
       </div>
 
       {/* Play Again / Error */}
