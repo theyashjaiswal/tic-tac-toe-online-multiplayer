@@ -50,6 +50,12 @@ Real-time moves from both clients updating instantly.
 
 ![Game progress](./screenshots/06-game-progress.png)
 
+### Live Score Tracking
+Server-authoritative wins/draws, both clients see the same numbers. The green LIVE dot pulses while the game is in progress.
+
+![Scores live](./screenshots/07-scores-live.png)
+![Scores after 2 wins](./screenshots/08-scores-after-2-wins.png)
+
 ---
 
 ## 🚀 Getting Started
@@ -159,7 +165,8 @@ tic-tac-toe-online-multiplayer/
 | `play_again`   | client → srv | —                        | Reset the board for a new round         |
 | `game_update`  | srv → client | `{ board, currentTurn, … }` | After every move                       |
 | `game_reset`   | srv → client | `{ board, currentTurn }` | After `play_again`                      |
-| `player_joined`| srv → client | `{ players, board, … }`  | New opponent connected                  |
+| `scores_update`| srv → client | `{ X, O, draws }`           | Live win/draw counters (server-authoritative) |
+| `player_joined`| srv → client | `{ players, board, scores }` | New opponent connected                  |
 | `opponent_left`| srv → client | `{ players, gameOver }`  | Other player disconnected               |
 
 ---
