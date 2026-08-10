@@ -322,19 +322,15 @@ function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, g
             lastMove={lastMove}
           />
         </div>
-        {isOpponentTurn && (
-          <div className="board-wait-overlay">
-            <div className="board-wait-box">
-              <span className="board-wait-pulse" />
-              <span className="board-wait-label">PLEASE WAIT</span>
-              <span className="board-wait-sub">
-                {players.find(p => p.symbol === currentTurn)?.name || 'opponent'}'s turn
-              </span>
-            </div>
-          </div>
-        )}
+        {/* Pop-up that fires ONLY when the user clicks during opponent's turn */}
         {denyFlash > 0 && isOpponentTurn && (
-          <div key={denyFlash} className="board-deny-flash">NOT YOUR TURN</div>
+          <div key={denyFlash} className="board-deny-flash">
+            <span className="deny-icon">⏳</span>
+            <span className="deny-label">PLEASE WAIT</span>
+            <span className="deny-sub">
+              {players.find(p => p.symbol === currentTurn)?.name || 'opponent'}'s turn — sit tight
+            </span>
+          </div>
         )}
       </div>
 

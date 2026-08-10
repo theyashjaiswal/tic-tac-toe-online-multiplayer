@@ -28,3 +28,7 @@ dist-ssr
 .DS_Store
 *.log
 /tmp/*.log
+
+# Generated artifacts (rebuild from source/README.md)
+README.pdf
+README.html
