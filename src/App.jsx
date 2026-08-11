@@ -348,9 +348,9 @@ function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, g
   const handleMove = (index) => {
     if (isMyTurn) {
       onMove(index)
-    } else if (isOpponentTurn) {
-      setDenyFlash(n => n + 1)
     }
+    // Only show denial popup when the SERVER explicitly rejects the move
+    // (denyFlash++ lives in the sock.emit callback — not here)
   }
 
   // Build invite link — preserves the room code so the recipient lands ready to join
@@ -668,8 +668,12 @@ export default function App() {
     if (mode === 'online') {
       const sock = getSocket()
       sock.emit('make_move', { index }, (res) => {
-        if (!res.success) setRoomError(res.error || 'Move failed')
-        else setRoomError('')
+        if (!res.success) {
+          setRoomError(res.error || 'Move failed')
+          setDenyFlash(n => n + 1)
+        } else {
+          setRoomError('')
+        }
       })
       return
     }
