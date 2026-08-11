@@ -888,7 +888,7 @@ export default function App() {
             winLine={winLine}
             lastMove={lastMove}
             onMove={handleMove}
-            onPlayAgain={onPlayAgain}
+            onPlayAgain={handlePlayAgain}
             onLeave={handleLeave}
             onSendMessage={async (text) => { await sendMessage(text) }}
             messages={messages}
