@@ -62,6 +62,7 @@ io.on('connection', (socket) => {
       board: Array(9).fill(null),
       currentTurn: 'X', gameOver: false, winner: null, winLine: null,
       scores: { X: 0, O: 0, draws: 0 },
+      messages: [],
     }
     socket.join(code)
     socket.roomCode = code
@@ -91,7 +92,24 @@ io.on('connection', (socket) => {
       scores: room.scores,
     })
     console.log('[room]', code, 'joined by', playerName)
-    cb({ success: true, roomCode: code, symbol: 'O', players: room.players, board: room.board, currentTurn: room.currentTurn, scores: room.scores })
+    cb({ success: true, roomCode: code, symbol: 'O', players: room.players, board: room.board, currentTurn: room.currentTurn, scores: room.scores, messages: room.messages })
+  })
+
+  // ── Room chat ────────────────────────────────────────────────────────────
+  socket.on('send_message', ({ text }, cb) => {
+    const room = rooms[socket.roomCode]
+    if (!room) return cb?.({ success: false, error: 'No room' })
+    const player = room.players.find(p => p.id === socket.id)
+    if (!player) return cb?.({ success: false, error: 'Not in room' })
+    const msg = { id: Date.now(), sender: player.name, text: text.trim().slice(0, 300), timestamp: new Date().toISOString() }
+    room.messages.push(msg)
+    io.to(socket.roomCode).emit('new_message', msg)
+    cb?.({ success: true })
+  })
+
+  socket.on('get_messages', (_, cb) => {
+    const room = rooms[socket.roomCode]
+    cb?.({ success: true, messages: room ? room.messages : [] })
   })
 
   socket.on('make_move', ({ index }, cb) => {

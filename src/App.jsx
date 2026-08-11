@@ -61,7 +61,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     const sock = getSocket()
     const tryJoin = () => {
       sock.emit('join_room', { roomCode: code, playerName: 'Guest' }, (res) => {
-        if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: 'Guest', players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
+        if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: 'Guest', players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores, messages: res.messages || [] })
         else { setMode('create'); setError(`"${code}" is invalid or expired — create a new room`) }
       })
     }
@@ -77,7 +77,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     setError(''); setLoading(true)
     getSocket().emit('create_room', { playerName: name.trim() }, (res) => {
       setLoading(false)
-      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim() })
+      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim(), messages: [] })
       else setError(res.error || 'Failed to create room')
     })
   }
@@ -91,7 +91,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     const autoName = `${tag}${Math.floor(Math.random() * 90 + 10)}`
     getSocket().emit('create_room', { playerName: autoName }, (res) => {
       setLoading(false)
-      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: autoName, autoCreated: true, scores: res.scores })
+      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: autoName, autoCreated: true, scores: res.scores, messages: [] })
       else setError(res.error || 'Failed to create test room')
     })
   }
@@ -102,7 +102,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     setError(''); setLoading(true)
     getSocket().emit('join_room', { roomCode: roomCode.trim().toUpperCase(), playerName: name.trim() }, (res) => {
       setLoading(false)
-      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: name.trim(), players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
+      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: name.trim(), players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores, messages: res.messages || [] })
       else setError(res.error || 'Failed to join room')
     })
   }
@@ -365,7 +365,7 @@ function PlayerBadge({ name, symbol, isYou, isWinner, isActive }) {
 }
 
 // ─── Room Screen ────────────────────────────────────────────────────────────
-function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, error, isAI, aiDifficulty }) {
+function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, onSendMessage, messages, error, isAI, aiDifficulty }) {
   const isMyTurn = currentTurn === mySymbol && !gameOver
   const isWaiting = players.length < 2 && !gameOver
   const isOpponentTurn = !isMyTurn && !isWaiting && !gameOver && players.length === 2
@@ -490,6 +490,11 @@ function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, g
         )}
       </div>
 
+      {/* Chat */}
+      {!isAI && onSendMessage && messages !== undefined && (
+        <ChatBox messages={messages} onSend={onSendMessage} myName={myName} />
+      )}
+
       {/* Play Again / Error */}
       <AnimatePresence>
         {gameOver && !isWaiting && (
@@ -562,6 +567,7 @@ export default function App() {
   const [roomError, setRoomError] = useState('')
   const [showOverlay, setShowOverlay] = useState(false)
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 })
+  const [messages, setMessages] = useState([])
   const [mode, setMode] = useState('friend')
   const [prefilledRoom, setPrefilledRoom] = useState('')
   // Top-level screen: 'home' | 'lobby' | 'room'
@@ -619,6 +625,10 @@ export default function App() {
       setScores(data)
     })
 
+    sock.on('new_message', (msg) => {
+      setMessages(prev => [...prev, msg])
+    })
+
     sock.on('opponent_left', (data) => {
       // (already wired in cleanup somewhere — let's just keep scores synced if provided)
       if (data.scores) setScores(data.scores)
@@ -656,6 +666,8 @@ export default function App() {
       if (data.currentTurn) setCurrentTurn(data.currentTurn)
     }
     if (data.scores) setScores(data.scores)
+    if (data.messages) setMessages(data.messages)
+    else if (data.isFirst) setMessages([])
     setScreen('room')
 
     // Remember so we can auto-rejoin on HMR / reconnect
@@ -813,6 +825,7 @@ export default function App() {
     setMyName('')
     setRoomError('')
     setScores({ X: 0, O: 0, draws: 0 })
+    setMessages([])
   }, [])
 
   return (
@@ -866,8 +879,10 @@ export default function App() {
             winLine={winLine}
             lastMove={lastMove}
             onMove={handleMove}
-            onPlayAgain={handlePlayAgain}
+            onPlayAgain={onPlayAgain}
             onLeave={handleLeave}
+            onSendMessage={async (text) => { await sendMessage(text) }}
+            messages={messages}
             error={roomError}
             isAI={mode === 'ai'}
             aiDifficulty={mode === 'ai' ? aiDifficulty : null}
@@ -895,6 +910,60 @@ export default function App() {
     </div>
   )
 }
+function sendMessage(text) {
+  return new Promise((resolve) => {
+    getSocket().emit('send_message', { text }, resolve)
+  })
+}
+
+// ─── Chat Box ─────────────────────────────────────────────────────────────────
+function ChatBox({ messages = [], onSend, myName }) {
+  const [text, setText] = useState('')
+  const bottomRef = useRef(null)
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  const handleSend = async (e) => {
+    e.preventDefault()
+    const trimmed = text.trim()
+    if (!trimmed) return
+    setText('')
+    await onSend(trimmed)
+  }
+
+  return (
+    <div className="chat-box">
+      <div className="chat-header">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        Room Chat
+      </div>
+      <div className="chat-messages">
+        {messages.length === 0 && <div className="chat-empty">No messages yet — say hi!</div>}
+        {messages.map((m) => (
+          <div key={m.id} className={`chat-msg${m.sender === myName ? ' chat-msg-me' : ''}`}>
+            <span className="chat-sender">{m.sender}</span>
+            <span className="chat-text">{m.text}</span>
+          </div>
+        ))}
+        <div ref={bottomRef} />
+      </div>
+      <form className="chat-input-row" onSubmit={handleSend}>
+        <input
+          className="chat-input"
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="Type a message..."
+          maxLength={300}
+        />
+        <button type="submit" className="chat-send-btn">Send</button>
+      </form>
+    </div>
+  )
+}
+
+
 
 function ScorePanel({ scores, variant }) {
   const isOnline = variant === 'online'
