@@ -60,7 +60,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
         if (code) {
           getSocket().emit('join_room', { roomCode: code, playerName: 'Guest' }, (res) => {
             if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: 'Guest', players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
-            else setError(res.error || 'Room not found or has expired')
+            else { setMode('create'); setError(`"${code}" is invalid or expired — create a new room`) }
           })
         }
       }, 400) // short delay to let socket initialize
@@ -173,7 +173,14 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
                 />
               </div>
             )}
-            {error && <p className="input-error">{error}</p>}
+            {error && (
+              <div className="error-with-action">
+                <p className="input-error">{error}</p>
+                <button className="btn-primary" style={{ marginTop: '8px' }} onClick={handleCreate} disabled={loading}>
+                  CREATE ROOM
+                </button>
+              </div>
+            )}
             <div className="lobby-buttons">
               <button className="btn-primary" onClick={mode === 'create' ? handleCreate : handleJoin} disabled={loading}>
                 {loading ? '...' : mode === 'create' ? 'CREATE' : 'JOIN'}
