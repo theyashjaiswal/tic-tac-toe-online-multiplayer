@@ -374,7 +374,7 @@ function PlayerBadge({ name, symbol, isYou, isWinner, isActive }) {
 }
 
 // ─── Room Screen ────────────────────────────────────────────────────────────
-function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, onSendMessage, messages, error, isAI, aiDifficulty }) {
+function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, onSendMessage, messages, error, isAI, aiDifficulty, showChat, onToggleChat }) {
   const isMyTurn = currentTurn === mySymbol && !gameOver
   const isWaiting = players.length < 2 && !gameOver
   const isOpponentTurn = !isMyTurn && !isWaiting && !gameOver && players.length === 2
@@ -499,9 +499,25 @@ function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, g
         )}
       </div>
 
-      {/* Chat */}
-      {!isAI && onSendMessage && messages !== undefined && (
-        <ChatBox messages={messages} onSend={onSendMessage} myName={myName} />
+      {/* Chat Toggle Button — YouTube live-comments style */}
+      {!isAI && onSendMessage && (
+        <button
+          className="chat-toggle-btn"
+          onClick={onToggleChat}
+          title={showChat ? 'Hide chat' : 'Show chat'}
+        >
+          💬 {showChat ? 'Hide' : 'Chat'}
+          {messages.length > 0 && !showChat && (
+            <span className="chat-badge">{messages.length}</span>
+          )}
+        </button>
+      )}
+
+      {/* Floating Chat Overlay */}
+      {!isAI && onSendMessage && showChat && (
+        <div className="chat-overlay">
+          <ChatBox messages={messages} onSend={onSendMessage} myName={myName} />
+        </div>
       )}
 
       {/* Play Again / Error */}
@@ -576,6 +592,7 @@ export default function App() {
   const [roomError, setRoomError] = useState('')
   const [showOverlay, setShowOverlay] = useState(false)
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 })
+  const [showChat, setShowChat] = useState(false) // chat overlay toggle
   const [messages, setMessages] = useState([])
   const [mode, setMode] = useState('friend')
   const [prefilledRoom, setPrefilledRoom] = useState('')
@@ -895,6 +912,8 @@ export default function App() {
             error={roomError}
             isAI={mode === 'ai'}
             aiDifficulty={mode === 'ai' ? aiDifficulty : null}
+            showChat={showChat}
+            onToggleChat={() => setShowChat(v => !v)}
           />
         )}
 

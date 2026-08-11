@@ -303,6 +303,56 @@ body {
    Win Overlay
    ================================================================ */
 
+
+/* ── Chat Toggle Button ─────────────────────────────────────────────────────── */
+.chat-toggle-btn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+  background: var(--bg-secondary, #1a1a2e);
+  color: var(--text-primary, #e0e0e0);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+  border-radius: 20px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  transition: background 0.2s, transform 0.1s;
+}
+.chat-toggle-btn:hover {
+  background: var(--bg-hover, #252540);
+  transform: translateY(-1px);
+}
+.chat-toggle-btn:active {
+  transform: translateY(0);
+}
+.chat-badge {
+  background: var(--accent-pink, #ff2d78);
+  color: white;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+/* ── Floating Chat Overlay ─────────────────────────────────────────────────── */
+.chat-overlay {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  z-index: 100;
+  width: 300px;
+  max-height: 400px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-color, rgba(255,255,255,0.1));
+}
+
 .win-overlay {
   position: fixed;
   inset: 0;
