@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { io } from 'socket.io-client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { GameBoard } from './GameBoard'
+import { pickMove, BOT_NAMES, DIFFICULTY_INFO } from './ai'
 import './index.css'
 
 // ─── Socket ─────────────────────────────────────────────────────────────────
@@ -204,6 +205,124 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
   )
 }
 
+// ─── Home Screen (mode picker) ───────────────────────────────────────────────
+function HomeScreen({ onChoose }) {
+  return (
+    <motion.div
+      className="home"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="home-title">
+        <span className="title-line">TIC TAC TOE</span>
+        <span className="title-sub">· PICK A MODE ·</span>
+      </div>
+
+      <div className="home-card">
+        <h2 className="lobby-heading">CHOOSE YOUR MODE</h2>
+        <p className="lobby-sub">Play a friend online or take on the AI bot solo</p>
+
+        <div className="mode-grid">
+          <motion.button
+            className="mode-card mode-online"
+            onClick={() => onChoose('online')}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <span className="mode-icon">🌐</span>
+            <span className="mode-title">ONLINE</span>
+            <span className="mode-desc">2-player multiplayer with a friend. Create or join a room.</span>
+            <span className="mode-cta">PLAY ONLINE →</span>
+          </motion.button>
+
+          <motion.button
+            className="mode-card mode-ai"
+            onClick={() => onChoose('ai')}
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+          >
+            <span className="mode-icon">🤖</span>
+            <span className="mode-title">VS AI</span>
+            <span className="mode-desc">Single-player against a bot. Pick a difficulty and play instantly.</span>
+            <span className="mode-cta">PLAY VS AI →</span>
+          </motion.button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// ─── AI Menu Screen ──────────────────────────────────────────────────────────
+function AIMenuScreen({ onStart, onBack }) {
+  const [name, setName] = useState('')
+  const [diff, setDiff] = useState('medium')
+
+  const handleStart = () => {
+    onStart(name.trim() || 'Player', diff)
+  }
+
+  return (
+    <motion.div
+      className="lobby"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <div className="home-title">
+        <span className="title-line">TIC TAC TOE</span>
+        <span className="title-sub">· VS AI ·</span>
+      </div>
+
+      <div className="lobby-card">
+        <h2 className="lobby-heading">PLAY VS AI</h2>
+        <p className="lobby-sub">Pick a difficulty, jump straight in</p>
+
+        <div className="input-group">
+          <label className="input-label">YOUR NAME</label>
+          <input
+            className="input-field"
+            type="text"
+            placeholder="Enter name..."
+            value={name}
+            onChange={e => setName(e.target.value)}
+            maxLength={16}
+            onKeyDown={e => { if (e.key === 'Enter') handleStart() }}
+            autoFocus
+          />
+        </div>
+
+        <div className="input-group">
+          <label className="input-label">DIFFICULTY</label>
+          <div className="diff-grid">
+            {['easy', 'medium', 'hard'].map(d => (
+              <button
+                key={d}
+                className={`diff-chip ${diff === d ? 'active' : ''} diff-${d}`}
+                onClick={() => setDiff(d)}
+                type="button"
+              >
+                <span className="diff-name">{d.toUpperCase()}</span>
+                <span className="diff-bot">{BOT_NAMES[d]}</span>
+              </button>
+            ))}
+          </div>
+          <p className="diff-hint">{DIFFICULTY_INFO[diff].desc}</p>
+        </div>
+
+        <div className="lobby-buttons">
+          <button className="btn-primary btn-lg" onClick={handleStart}>
+            ▶ START GAME
+          </button>
+          <button className="btn-ghost" onClick={onBack}>
+            BACK
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 // ─── Player Badge ────────────────────────────────────────────────────────────
 function PlayerBadge({ name, symbol, isYou, isWinner, isActive }) {
   const color = symbol === 'X' ? 'var(--accent-pink)' : 'var(--accent-cyan)'
@@ -218,7 +337,7 @@ function PlayerBadge({ name, symbol, isYou, isWinner, isActive }) {
 }
 
 // ─── Room Screen ────────────────────────────────────────────────────────────
-function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, error }) {
+function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, gameOver, winner, winLine, lastMove, onMove, onPlayAgain, onLeave, error, isAI, aiDifficulty }) {
   const isMyTurn = currentTurn === mySymbol && !gameOver
   const isWaiting = players.length < 2 && !gameOver
   const isOpponentTurn = !isMyTurn && !isWaiting && !gameOver && players.length === 2
@@ -269,14 +388,23 @@ function RoomScreen({ roomCode, mySymbol, myName, players, board, currentTurn, g
     >
       {/* Header */}
       <div className="room-header">
-        <div className="room-code-block">
-          <span className="room-code-label">ROOM CODE</span>
-          <span className="room-code">{roomCode}</span>
-        </div>
+        {isAI ? (
+          <div className="room-code-block">
+            <span className="room-code-label">VS AI · DIFFICULTY</span>
+            <span className="room-code ai-tag">{aiDifficulty?.toUpperCase()}</span>
+          </div>
+        ) : (
+          <div className="room-code-block">
+            <span className="room-code-label">ROOM CODE</span>
+            <span className="room-code">{roomCode}</span>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn-ghost btn-sm" onClick={copyShare}>
-            {copied ? '✓ COPIED!' : '🔗 SHARE'}
-          </button>
+          {!isAI && (
+            <button className="btn-ghost btn-sm" onClick={copyShare}>
+              {copied ? '✓ COPIED!' : '🔗 SHARE'}
+            </button>
+          )}
           <button className="btn-ghost btn-sm" onClick={onLeave}>LEAVE</button>
         </div>
       </div>
@@ -391,7 +519,8 @@ function WinOverlay({ winner, mySymbol, myName, players, mode, onPlayAgain, onRe
 
 // ─── App ────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen, setScreen] = useState('landing') // 'landing' | 'room'
+  const [screen, setScreen] = useState('home')    // 'home' | 'landing' | 'room'
+  const [selectedMode, setSelectedMode] = useState(null) // 'online' | 'ai' — chosen on HomeScreen
   const [mySymbol, setMySymbol] = useState(null)
   const [myName, setMyName] = useState('')
   const [roomCode, setRoomCode] = useState('')
@@ -408,6 +537,10 @@ export default function App() {
   const [localScores, setLocalScores] = useState({ X: 0, O: 0, draws: 0 })
   const [mode, setMode] = useState('friend')
   const [prefilledRoom, setPrefilledRoom] = useState('')
+  // Top-level screen: 'home' | 'lobby' | 'room'
+  // 'home' = the new start screen with ONLINE vs VS AI choice
+  const [playMode, setPlayMode] = useState('home')
+  const [aiDifficulty, setAiDifficulty] = useState('medium')
   const socketRef = useRef(null)
 
   // ── Read ?room=CODE on first load so shared invite links work ─────────────
@@ -504,14 +637,103 @@ export default function App() {
     } catch {}
   }, [])
 
+  // ── VS AI: skip socket, set user + bot straight into a local room ─────────
+  const startAIGame = useCallback((name, difficulty) => {
+    const safeName = (name || 'Player').trim() || 'Player'
+    setMode('ai')
+    setAiDifficulty(difficulty)
+    setMySymbol('X')
+    setMyName(safeName)
+    setRoomCode('AI')
+    setPlayers([
+      { id: 'me', name: safeName, symbol: 'X' },
+      { id: 'bot', name: BOT_NAMES[difficulty], symbol: 'O' },
+    ])
+    setBoard(Array(9).fill(null))
+    setCurrentTurn('X')
+    setGameOver(false)
+    setWinner(null)
+    setWinLine(null)
+    setLastMove(null)
+    setShowOverlay(false)
+    setRoomError('')
+    setScores({ X: 0, O: 0, draws: 0 })
+    setScreen('room')
+  }, [])
+
   const handleMove = useCallback((index) => {
-    if (mode !== 'online') return
-    const sock = getSocket()
-    sock.emit('make_move', { index }, (res) => {
-      if (!res.success) setRoomError(res.error || 'Move failed')
-      else setRoomError('')
-    })
-  }, [mode])
+    // ONLINE mode: send to server
+    if (mode === 'online') {
+      const sock = getSocket()
+      sock.emit('make_move', { index }, (res) => {
+        if (!res.success) setRoomError(res.error || 'Move failed')
+        else setRoomError('')
+      })
+      return
+    }
+
+    // AI mode: local game, update board immediately
+    if (mode !== 'ai') return
+    if (gameOver || currentTurn !== 'X') return
+    if (board[index] !== null) return
+
+    const nextBoard = board.slice()
+    nextBoard[index] = 'X'
+
+    // Win check (same pattern as server)
+    const WIN_PATTERNS = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+    let wonSym = null, winLine = null
+    for (const p of WIN_PATTERNS) {
+      const [a,b,c] = p
+      if (nextBoard[a] && nextBoard[a] === nextBoard[b] && nextBoard[b] === nextBoard[c]) {
+        wonSym = nextBoard[a]; winLine = p; break
+      }
+    }
+    const draw = !wonSym && nextBoard.every(c => c !== null)
+
+    setBoard(nextBoard)
+    setLastMove({ index, symbol: 'X' })
+    if (wonSym) {
+      setGameOver(true); setWinner(wonSym); setWinLine(winLine); setShowOverlay(true)
+      setScores(s => ({ ...s, [wonSym]: s[wonSym] + 1 }))
+      return
+    }
+    if (draw) {
+      setGameOver(true); setWinner(null); setShowOverlay(true)
+      setScores(s => ({ ...s, draws: s.draws + 1 }))
+      return
+    }
+    setCurrentTurn('O')
+
+    // AI replies after a short delay so it feels like thinking
+    setTimeout(() => {
+      const aiMove = pickMove(nextBoard, aiDifficulty, 'O')
+      if (aiMove === -1 || aiMove == null) return
+      const aiBoard = nextBoard.slice()
+      aiBoard[aiMove] = 'O'
+      let aiWonSym = null, aiWinLine = null
+      for (const p of WIN_PATTERNS) {
+        const [a,b,c] = p
+        if (aiBoard[a] && aiBoard[a] === aiBoard[b] && aiBoard[b] === aiBoard[c]) {
+          aiWonSym = aiBoard[a]; aiWinLine = p; break
+        }
+      }
+      const aiDraw = !aiWonSym && aiBoard.every(c => c !== null)
+      setBoard(aiBoard)
+      setLastMove({ index: aiMove, symbol: 'O' })
+      if (aiWonSym) {
+        setGameOver(true); setWinner(aiWonSym); setWinLine(aiWinLine); setShowOverlay(true)
+        setScores(s => ({ ...s, [aiWonSym]: s[aiWonSym] + 1 }))
+        return
+      }
+      if (aiDraw) {
+        setGameOver(true); setWinner(null); setShowOverlay(true)
+        setScores(s => ({ ...s, draws: s.draws + 1 }))
+        return
+      }
+      setCurrentTurn('X')
+    }, 550)
+  }, [mode, board, currentTurn, gameOver, aiDifficulty])
 
   const handlePlayAgain = useCallback(() => {
     setShowOverlay(false)
@@ -520,26 +742,32 @@ export default function App() {
     setWinLine(null)
     setBoard(Array(9).fill(null))
     setCurrentTurn('X')
-    getSocket().emit('play_again', (res) => {
-      // Scores are server-authoritative now — server fires `scores_update` automatically on every game end.
-      // This callback just acknowledges the round reset.
-    })
-  }, [mode, mySymbol, winner])
+    setLastMove(null)
+    if (mode === 'online') {
+      getSocket().emit('play_again', () => {
+        // Scores are server-authoritative now — server fires `scores_update` automatically on every game end.
+      })
+    }
+  }, [mode])
 
   const handleLeave = useCallback(() => {
-    // Tell server explicitly so we don't appear as a "disconnect ghost"
-    try { socketRef.current?.emit('leave_room') } catch {}
-    socketRef.current.disconnect()
-    socketRef.current = null
-    socket = null
-    socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] })
-    autoRejoinOnConnect(socket)
-    try {
-      sessionStorage.removeItem('dcttt_roomCode')
-      sessionStorage.removeItem('dcttt_playerName')
-      sessionStorage.removeItem('dcttt_symbol')
-    } catch {}
-    setScreen('landing')
+    // Online mode: tell server explicitly so we don't appear as a "disconnect ghost"
+    if (mode === 'online') {
+      try { socketRef.current?.emit('leave_room') } catch {}
+      socketRef.current.disconnect()
+      socketRef.current = null
+      socket = null
+      socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] })
+      autoRejoinOnConnect(socket)
+      try {
+        sessionStorage.removeItem('dcttt_roomCode')
+        sessionStorage.removeItem('dcttt_playerName')
+        sessionStorage.removeItem('dcttt_symbol')
+      } catch {}
+    }
+    // Both modes: wipe room state + bounce back to home
+    setScreen('home')
+    setPlayMode('home')
     setPlayers([])
     setBoard(Array(9).fill(null))
     setGameOver(false)
@@ -559,14 +787,37 @@ export default function App() {
       <StarsBG />
 
       <div className="content">
+        {screen === 'home' && (
+          <HomeScreen
+            onChoose={(choice) => {
+              setSelectedMode(choice)
+              if (choice === 'online') {
+                setScreen('landing')
+              } else {
+                setScreen('ai-menu')
+              }
+            }}
+          />
+        )}
+
         {screen === 'landing' && (
-          <>
+          <div className="landing-shell">
             <div className="game-title" style={{ marginBottom: 12 }}>
               <span className="title-line">TIC TAC TOE</span>
               <span className="title-sub">· ONLINE MULTIPLAYER ·</span>
             </div>
+            <button className="back-to-home" onClick={() => setScreen('home')}>
+              ← Back
+            </button>
             <LandingScreen onEnter={handleEnter} prefilledRoom={prefilledRoom} />
-          </>
+          </div>
+        )}
+
+        {screen === 'ai-menu' && (
+          <AIMenuScreen
+            onStart={startAIGame}
+            onBack={() => setScreen('home')}
+          />
         )}
 
         {screen === 'room' && (
@@ -585,13 +836,15 @@ export default function App() {
             onPlayAgain={handlePlayAgain}
             onLeave={handleLeave}
             error={roomError}
+            isAI={mode === 'ai'}
+            aiDifficulty={mode === 'ai' ? aiDifficulty : null}
           />
         )}
 
         {/* Live score panel — uses server-fed scores in online rooms, local scores otherwise */}
-        {mode === 'online'
+        {screen === 'room' && (mode === 'online'
           ? <ScorePanel scores={scores} variant="online" />
-          : <ScorePanel scores={localScores} />}
+          : <ScorePanel scores={localScores} variant="online" />)}
       </div>
 
       <AnimatePresence>
