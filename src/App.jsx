@@ -566,6 +566,7 @@ export default function App() {
       setWinLine(data.winLine)
       setLastMove(data.lastMove)
       if (data.gameOver) setShowOverlay(true)
+      if (data.scores) setScores(data.scores)
     })
 
     sock.on('game_reset', (data) => {
@@ -576,6 +577,7 @@ export default function App() {
       setWinLine(null)
       setLastMove(null)
       setShowOverlay(false)
+      if (data.scores) setScores(data.scores)
     })
 
     sock.on('player_joined', (data) => {

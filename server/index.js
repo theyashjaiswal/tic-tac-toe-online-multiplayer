@@ -119,6 +119,7 @@ io.on('connection', (socket) => {
     io.to(socket.roomCode).emit('game_update', {
       board: room.board, currentTurn: room.currentTurn, gameOver: room.gameOver,
       winner: room.winner, winLine: room.winLine, lastMove: { index, symbol: player.symbol },
+      scores: room.scores,
     })
     io.to(socket.roomCode).emit('scores_update', room.scores)
     cb({ success: true })
@@ -128,7 +129,7 @@ io.on('connection', (socket) => {
     const room = rooms[socket.roomCode]
     if (!room) return cb?.({ success: false })
     resetRoom(room)
-    io.to(socket.roomCode).emit('game_reset', { board: room.board, currentTurn: room.currentTurn })
+    io.to(socket.roomCode).emit('game_reset', { board: room.board, currentTurn: room.currentTurn, scores: room.scores })
     cb?.({ success: true })
   })
 
