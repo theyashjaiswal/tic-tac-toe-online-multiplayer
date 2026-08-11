@@ -75,9 +75,13 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
   const handleCreate = () => {
     if (!name.trim()) { setError('Enter your name'); return }
     setError(''); setLoading(true)
-    getSocket().emit('create_room', { playerName: name.trim() }, (res) => {
+    const sock = getSocket()
+      console.log('[handleCreate] socket id:', sock.id, 'connected:', sock.connected)
+      if (!sock.connected) { setError('Not connected — check your internet'); setLoading(false); return }
+      sock.emit('create_room', { playerName: name.trim() }, (res) => {
       console.log('[DEBUG] create_room response:', res)
       setLoading(false)
+      if (!res) { setError('Server error — no response'); return }
       if (res.success) {
         console.log('[DEBUG] calling onEnter with:', { roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim() })
         onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim(), messages: [] })
