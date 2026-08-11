@@ -51,6 +51,23 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
   const [loading, setLoading] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
 
+  // ── Auto-join when opened from a shared invite link ────────────────────────
+  useEffect(() => {
+    if (prefilledRoom) {
+      setName('Guest')
+      const timer = setTimeout(() => {
+        const code = prefilledRoom.trim().toUpperCase()
+        if (code) {
+          getSocket().emit('join_room', { roomCode: code, playerName: 'Guest' }, (res) => {
+            if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: 'Guest', players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
+            else setError(res.error || 'Room not found or has expired')
+          })
+        }
+      }, 400) // short delay to let socket initialize
+      return () => clearTimeout(timer)
+    }
+  }, [prefilledRoom])
+
   const handleCreate = () => {
     if (!name.trim()) { setError('Enter your name'); return }
     setError(''); setLoading(true)
