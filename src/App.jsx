@@ -594,6 +594,7 @@ export default function App() {
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 })
   const [showChat, setShowChat] = useState(false) // chat overlay toggle
   const [messages, setMessages] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [mode, setMode] = useState('friend')
   const [prefilledRoom, setPrefilledRoom] = useState('')
   // Top-level screen: 'home' | 'lobby' | 'room'
