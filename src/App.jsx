@@ -7,7 +7,7 @@ import './index.css'
 
 // ─── Socket ─────────────────────────────────────────────────────────────────
 // Connect to current origin so vite proxy (dev) and same-origin (prod) both work
-const SOCKET_URL = import.meta.env.DEV ? '' : ''
+const SOCKET_URL = import.meta.env.DEV ? '' : import.meta.env.VITE_SERVER_URL || ''
 let socket = null
 
 function getSocket() {
@@ -53,19 +53,23 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
 
   // ── Auto-join when opened from a shared invite link ────────────────────────
   useEffect(() => {
-    if (prefilledRoom) {
-      setName('Guest')
-      const timer = setTimeout(() => {
-        const code = prefilledRoom.trim().toUpperCase()
-        if (code) {
-          getSocket().emit('join_room', { roomCode: code, playerName: 'Guest' }, (res) => {
-            if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: 'Guest', players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
-            else { setMode('create'); setError(`"${code}" is invalid or expired — create a new room`) }
-          })
-        }
-      }, 400) // short delay to let socket initialize
-      return () => clearTimeout(timer)
+    if (!prefilledRoom) return
+    setName('Guest')
+    const code = prefilledRoom.trim().toUpperCase()
+    if (!code) return
+
+    const sock = getSocket()
+    const tryJoin = () => {
+      sock.emit('join_room', { roomCode: code, playerName: 'Guest' }, (res) => {
+        if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: 'Guest', players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
+        else { setMode('create'); setError(`"${code}" is invalid or expired — create a new room`) }
+      })
     }
+
+    if (sock.connected) { tryJoin(); return }
+    const onConnect = () => { sock.off('connect', onConnect); tryJoin() }
+    sock.on('connect', onConnect)
+    return () => sock.off('connect', onConnect)
   }, [prefilledRoom])
 
   const handleCreate = () => {
