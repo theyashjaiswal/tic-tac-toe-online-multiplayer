@@ -651,7 +651,7 @@ export default function App() {
       setScores(data)
     })
 
-    sock.on('new_message', (msg) => {
+    sock.on('new_message', (msg) => { console.log('[new_message] received:', msg)
       setMessages(prev => [...prev, msg])
     })
 
@@ -940,12 +940,12 @@ export default function App() {
 }
 function sendMessage(text) {
   return new Promise((resolve) => {
-    getSocket().emit('send_message', { text }, resolve)
+    getSocket().emit('send_message', { text }, (res) => { console.log('[send_message] sent, res:', res); resolve(res) })
   })
 }
 
 // ─── Chat Box ─────────────────────────────────────────────────────────────────
-function ChatBox({ messages = [], onSend, myName }) {
+function ChatBox({ messages = [], onSend, myName }) { console.log('[ChatBox] render, messages:', messages)
   const [text, setText] = useState('')
   const bottomRef = useRef(null)
 
