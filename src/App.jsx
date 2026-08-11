@@ -76,9 +76,14 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     if (!name.trim()) { setError('Enter your name'); return }
     setError(''); setLoading(true)
     getSocket().emit('create_room', { playerName: name.trim() }, (res) => {
+      console.log('[DEBUG] create_room response:', res)
       setLoading(false)
-      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim(), messages: [] })
-      else setError(res.error || 'Failed to create room')
+      if (res.success) {
+        console.log('[DEBUG] calling onEnter with:', { roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim() })
+        onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: name.trim(), messages: [] })
+      } else {
+        setError(res.error || 'Failed to create room')
+      }
     })
   }
 
@@ -652,6 +657,7 @@ export default function App() {
   }, [])
 
   const handleEnter = useCallback((data) => {
+    console.log('[DEBUG] handleEnter called:', data)
     setRoomCode(data.roomCode)
     setMySymbol(data.symbol)
     setMyName(data.name)
@@ -699,9 +705,8 @@ export default function App() {
     setShowOverlay(false)
     setRoomError('')
     setScores({ X: 0, O: 0, draws: 0 })
-    if (scores) setScores(scores)
     setScreen('room')
-  }, [scores])
+  }, [])
 
   const handleMove = useCallback((index) => {
     // ONLINE mode: send to server
