@@ -56,7 +56,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     if (!prefilledRoom) return
     setName('Guest')
     const code = prefilledRoom.trim().toUpperCase()
-    if (!code) return
+    if (!/^[A-Z0-9]{5}$/.test(code)) return
 
     const sock = getSocket()
     const tryJoin = () => {
