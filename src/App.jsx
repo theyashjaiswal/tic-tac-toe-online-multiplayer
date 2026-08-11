@@ -70,7 +70,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     const autoName = `${tag}${Math.floor(Math.random() * 90 + 10)}`
     getSocket().emit('create_room', { playerName: autoName }, (res) => {
       setLoading(false)
-      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: autoName, autoCreated: true })
+      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: true, name: autoName, autoCreated: true, scores: res.scores })
       else setError(res.error || 'Failed to create test room')
     })
   }
@@ -81,7 +81,7 @@ function LandingScreen({ onEnter, prefilledRoom = '' }) {
     setError(''); setLoading(true)
     getSocket().emit('join_room', { roomCode: roomCode.trim().toUpperCase(), playerName: name.trim() }, (res) => {
       setLoading(false)
-      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: name.trim(), players: res.players, board: res.board, currentTurn: res.currentTurn })
+      if (res.success) onEnter({ roomCode: res.roomCode, symbol: res.symbol, isFirst: false, name: name.trim(), players: res.players, board: res.board, currentTurn: res.currentTurn, scores: res.scores })
       else setError(res.error || 'Failed to join room')
     })
   }
@@ -534,7 +534,6 @@ export default function App() {
   const [roomError, setRoomError] = useState('')
   const [showOverlay, setShowOverlay] = useState(false)
   const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 })
-  const [localScores, setLocalScores] = useState({ X: 0, O: 0, draws: 0 })
   const [mode, setMode] = useState('friend')
   const [prefilledRoom, setPrefilledRoom] = useState('')
   // Top-level screen: 'home' | 'lobby' | 'room'
@@ -660,8 +659,9 @@ export default function App() {
     setShowOverlay(false)
     setRoomError('')
     setScores({ X: 0, O: 0, draws: 0 })
+    if (scores) setScores(scores)
     setScreen('room')
-  }, [])
+  }, [scores])
 
   const handleMove = useCallback((index) => {
     // ONLINE mode: send to server
@@ -784,7 +784,6 @@ export default function App() {
     setMySymbol(null)
     setMyName('')
     setRoomError('')
-    setLocalScores({ X: 0, O: 0, draws: 0 })
     setScores({ X: 0, O: 0, draws: 0 })
   }, [])
 
@@ -847,10 +846,8 @@ export default function App() {
           />
         )}
 
-        {/* Live score panel — uses server-fed scores in online rooms, local scores otherwise */}
-        {screen === 'room' && (mode === 'online'
-          ? <ScorePanel scores={scores} variant="online" />
-          : <ScorePanel scores={localScores} variant="online" />)}
+        {/* Live score panel — all modes feed scores into the same state */}
+        {screen === 'room' && <ScorePanel scores={scores} variant={mode} />}
       </div>
 
       <AnimatePresence>
