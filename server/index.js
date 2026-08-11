@@ -98,11 +98,14 @@ io.on('connection', (socket) => {
   // ── Room chat ────────────────────────────────────────────────────────────
   socket.on('send_message', ({ text }, cb) => {
     const room = rooms[socket.roomCode]
+    console.log('[chat] send_message from', socket.id, 'in room', socket.roomCode, 'room exists:', !!room)
     if (!room) return cb?.({ success: false, error: 'No room' })
     const player = room.players.find(p => p.id === socket.id)
+    console.log('[chat] player found:', player?.name)
     if (!player) return cb?.({ success: false, error: 'Not in room' })
     const msg = { id: Date.now(), sender: player.name, text: text.trim().slice(0, 300), timestamp: new Date().toISOString() }
     room.messages.push(msg)
+    console.log('[chat] broadcasting to room', socket.roomCode, 'players:', room.players.length)
     io.to(socket.roomCode).emit('new_message', msg)
     cb?.({ success: true })
   })

@@ -651,8 +651,13 @@ export default function App() {
       setScores(data)
     })
 
-    sock.on('new_message', (msg) => { console.log('[new_message] received:', msg)
-      setMessages(prev => [...prev, msg])
+    sock.on('new_message', (msg) => {
+      console.log('[new_message] received:', msg)
+      setMessages(prev => {
+        if (prev.some(m => m.time === msg.time && m.sender === msg.sender)) return prev
+        return [...prev, msg]
+      })
+      if (!showChat) setUnreadCount(n => n + 1)
     })
 
     sock.on('opponent_left', (data) => {
@@ -914,6 +919,7 @@ export default function App() {
             aiDifficulty={mode === 'ai' ? aiDifficulty : null}
             showChat={showChat}
             onToggleChat={() => setShowChat(v => !v)}
+            unreadCount={unreadCount}
           />
         )}
 
